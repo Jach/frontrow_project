@@ -2,7 +2,9 @@
   (:require [compojure.core :refer :all]
             [compojure.handler :as handler]
             [compojure.route :as route]
-            [ring.middleware.json :as json]))
+            [ring.adapter.jetty :as jetty]
+            [ring.middleware.json :as json]
+            [ring.util.response :as ring]))
 
 (def store-filename "store.dat")
 
@@ -38,25 +40,27 @@
   with just the value as the only element."
   [m k v]
   (assoc m k
-          (vec (conj (k m)
-                     v))))
+           (vec (conj (k m)
+                      v))))
 
 (defn add-number [k v]
   (let [k (keyword k)]
     (k (swap! kv-store #(create-or-conj %1 k v)))))
 
 (defroutes app-routes
-  (context "/store" [] (defroutes store-routes
-    (GET  "/average_of_averages" [] (avg-of-avgs))
-    (context "/data" [] (defroutes store-data-routes
-      (GET "/:keyword/average" [k] (avg-key k))
-      ;; Even though the following is a POST method,
-      ;; it makes sense to pass the number as part
-      ;; of the URL instead of explicitly in the request body.
-      (POST ["/:keyword/:number", :number #"[0-9]+"] [k v] (add-number k v))))))
+  (GET "/store/average_of_averages" [] (ring/response (avg-of-avgs)))
+  (GET "/store/data/:k/average" [k] (ring/response (avg-key k)))
+  ;; Even though the following is a POST method,
+  ;; it makes sense to pass the number data as part
+  ;; of the URL instead of explicitly in the request body
+  ;; to simplify usage of the API.
+  (POST ["/store/data/:k/:number", :number #"[0-9]+"] [k number] (ring/response (add-number k (Integer/parseInt number))))
   (route/not-found "Not Found"))
 
 (def app
   (-> (handler/api app-routes)
     (json/wrap-json-body)
     (json/wrap-json-response)))
+
+(defn -main [& m]
+  (jetty/run-jetty app {:port 8321}))
