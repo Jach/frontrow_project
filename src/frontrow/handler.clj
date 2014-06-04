@@ -1,4 +1,8 @@
-(ns frontrow.core)
+(ns frontrow.handler
+  (:require [compojure.core :refer :all]
+            [compojure.handler :as handler]
+            [compojure.route :as route]
+            [ring.middleware.json :as json]))
 
 (def store-filename "store.dat")
 
@@ -17,17 +21,14 @@
 (defn average [coll]
   (/ (apply + coll) (count coll)))
 
-(defn ^{:get true :route "/average_of_averages"}
-  avg-of-avgs
+(defn avg-of-avgs
   "Computes average of averages for all values in the store.
   TODO: Test for parallelism benefits on bigger data stores."
   []
   {:average (if-let [store-vals (vals @kv-store)]
               (float (average (map average store-vals))))})
 
-(defn ^{:get true :route "/average/<key>"}
-  avg-key
-  [k]
+(defn avg-key [k]
   {:average (if-let [v ((keyword k) @kv-store)]
               (float (average v)))})
 
@@ -40,9 +41,22 @@
           (vec (conj (k m)
                      v))))
 
-(defn ^{:post true :route "/add_number/<key>"}
-  add-number
-  [k v]
+(defn add-number [k v]
   (let [k (keyword k)]
     (k (swap! kv-store #(create-or-conj %1 k v)))))
 
+(defroutes app-routes
+  (context "/store" [] (defroutes store-routes
+    (GET  "/average_of_averages" [] (avg-of-avgs))
+    (context "/data" [] (defroutes store-data-routes
+      (GET "/:keyword/average" [k] (avg-key k))
+      ;; Even though the following is a POST method,
+      ;; it makes sense to pass the number as part
+      ;; of the URL instead of explicitly in the request body.
+      (POST ["/:keyword/:number", :number #"[0-9]+"] [k v] (add-number k v))))))
+  (route/not-found "Not Found"))
+
+(def app
+  (-> (handler/api app-routes)
+    (json/wrap-json-body)
+    (json/wrap-json-response)))
