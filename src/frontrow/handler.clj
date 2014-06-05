@@ -21,6 +21,7 @@
 (add-watch kv-store :changed (fn [k r os ns] (serialize-store ns)))
 
 (defn average [coll]
+  {:pre [(not (empty? coll))]}
   (/ (apply + coll) (count coll)))
 
 (defn avg-of-avgs
