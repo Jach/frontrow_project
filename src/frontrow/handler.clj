@@ -47,6 +47,9 @@
   (let [k (keyword k)]
     (k (swap! kv-store #(create-or-conj %1 k v)))))
 
+(defn delete-data []
+  (reset! kv-store {}))
+
 (defroutes app-routes
   (GET "/store/average_of_averages" [] (ring/response (avg-of-avgs)))
   (GET "/store/data/:k/average" [k] (ring/response (avg-key k)))
@@ -55,6 +58,7 @@
   ;; of the URL instead of explicitly in the request body
   ;; to simplify usage of the API.
   (POST ["/store/data/:k/:number", :number #"[0-9]+"] [k number] (ring/response (add-number k (Integer/parseInt number))))
+  (DELETE "/store" [] (ring/response (delete-data)))
   (route/not-found "Not Found"))
 
 (def app
