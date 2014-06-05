@@ -16,9 +16,9 @@
     (atom (read-string (slurp store-filename)))
     (atom {})))
 
-(def kv-store (deserialize-store))
+(def ^:dynamic *kv-store* (deserialize-store))
 
-(add-watch kv-store :changed (fn [k r os ns] (serialize-store ns)))
+(add-watch *kv-store* :changed (fn [k r os ns] (serialize-store ns)))
 
 (defn average [coll]
   {:pre [(not (empty? coll))]}
@@ -28,11 +28,11 @@
   "Computes average of averages for all values in the store.
   TODO: Test for parallelism benefits on bigger data stores."
   []
-  {:average (if-let [store-vals (vals @kv-store)]
+  {:average (if-let [store-vals (vals @*kv-store*)]
               (float (average (map average store-vals))))})
 
 (defn avg-key [k]
-  {:average (if-let [v ((keyword k) @kv-store)]
+  {:average (if-let [v ((keyword k) @*kv-store*)]
               (float (average v)))})
 
 (defn create-or-conj
@@ -46,10 +46,10 @@
 
 (defn add-number [k v]
   (let [k (keyword k)]
-    (k (swap! kv-store #(create-or-conj %1 k v)))))
+    (k (swap! *kv-store* #(create-or-conj %1 k v)))))
 
 (defn delete-data []
-  (reset! kv-store {}))
+  (reset! *kv-store* {}))
 
 (defroutes app-routes
   (GET "/store/average_of_averages" [] (ring/response (avg-of-avgs)))
@@ -58,7 +58,7 @@
   ;; it makes sense to pass the number data as part
   ;; of the URL instead of explicitly in the request body
   ;; to simplify usage of the API.
-  (POST ["/store/data/:k/:number", :number #"[0-9]+"] [k number] (ring/response (add-number k (Integer/parseInt number))))
+  (POST ["/store/data/:k/:number", :number #"-?[0-9]+"] [k number] (ring/response (add-number k (Integer/parseInt number))))
   (DELETE "/store" [] (ring/response (delete-data)))
   (route/not-found "Not Found"))
 
