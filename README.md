@@ -1,5 +1,11 @@
 # Front Row Project
 
+This is just an implementation of a simple API spec in Clojure
+done as part of an interview process. It's available for others
+(including myself in the future probably!) to look at and maybe
+learn something, but its actual usage isn't really useful for
+any purpose.
+
 Run the server on port 3000 with `lein ring server-headless`,
 additionally for the knowledge I created a main function to
 start up a jetty server, so that simply `lein run` will also
